@@ -189,7 +189,9 @@ function POpen:new(args)
         local data = table.concat(inbuffer)
         inbuffer = {}
         for line, nl in data:gmatch '([^\n]*)(\n?)' do
-            if nl ~= '' then res.on_line(line)
+            if nl ~= '' then
+                local ok, res = pcall(res.on_line, line)
+                if not ok then print('popen on_line handler returned the following error:', res) end
             elseif line ~= '' then table.insert(inbuffer, line) end
         end
     end}
@@ -290,12 +292,15 @@ function FileSelector:run(timeout)
         if t == 0 then return 'TIMEDOUT' end
         for fd, pollfd in pairs(self.fds) do
             for event, activated in pairs(pollfd.revents) do
-                if activated and self.callbacks[fd][event] then self.callbacks[fd][event](fd, event) end
+                if activated and self.callbacks[fd][event] then
+                    local ok, res = pcall(self.callbacks[fd][event], fd, event)
+                    if not ok then print('event handler raised the following error:', res) end
+                end
             end
             if pollfd.revents.HUP or pollfd.revents.ERR then
-                unistd.close(fd)
                 self.callbacks[fd] = nil
                 self.fds[fd] = nil
+                unistd.close(fd)
             elseif pollfd.revents.NVAL then
                 self.callbacks[fd] = nil
                 self.fds[fd] = nil
@@ -421,7 +426,7 @@ function onavailable(self, pipe)
             end)
         end
     else
-        pipe.on_line = function(line) return error('unexpected line on available pipe: ' .. line) end
+        pipe.on_line = function(line) return error(('unexpected line on available pipe: %q'):format(line)) end
         pipe.work = nil
         self.working[pipe] = nil
         self.available[pipe] = 1
