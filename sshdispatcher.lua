@@ -395,10 +395,10 @@ local function trymakingavailable(self)
                     self.servers[id] = nil
                     self.queue[self.queue.wp] = pipe.work
                     self.queue.wp = self.queue.wp + 1
+                    trymakingavailable(self)
                     --self.work[1]:fail('pipe closed while working')
                     --return error('pipe closed while working')
                 end
-                trymakingavailable(self)
             end,
             path=self.sshclient, argt=argt}
         s.connection = pipe
